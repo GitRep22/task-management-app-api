@@ -1,0 +1,75 @@
+service: task-management-backend
+frameworkVersion: "4"
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ap-northeast-1
+  environment:
+    DYNAMODB_TABLE: ${env:DYNAMODB_TABLE, 'tasks_table-dev'}
+    TASKS_TABLE: ${self:provider.environment.DYNAMODB_TABLE}
+  httpApi:
+    cors:
+      allowedOrigins:
+        - "*" 
+      allowedMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+      allowedHeaders:
+        - Content-Type
+        - Authorization
+
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:PutItem
+        - dynamodb:GetItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Scan
+      Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}
+
+functions:
+  tasks:
+    handler: handler.app
+    environment:
+      DYNAMODB_TABLE: ${self:provider.environment.DYNAMODB_TABLE}
+    events:
+      - httpApi:
+          path: /tasks
+          method: GET
+      - httpApi:
+          path: /tasks
+          method: POST
+      - httpApi:
+          path: /tasks/{id}
+          method: GET
+      - httpApi:
+          path: /tasks/{id}
+          method: PUT
+      - httpApi:
+          path: /tasks/{id}
+          method: DELETE
+      - httpApi:
+          path: /api-docs
+          method: GET
+
+resources:
+  Resources:
+    TasksTable:
+      Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: N  
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+
+plugins:
+  - serverless-offline
